@@ -24,6 +24,15 @@ const generateTraceparent = () => {
 
 let currentAccountId = ACCOUNT_IDS[0];
 
+const recentOrderIds = [];
+const rememberOrderId = (id) => {
+  if (!id) return;
+  recentOrderIds.push(id);
+  if (recentOrderIds.length > 5) recentOrderIds.shift();
+};
+const chance = (p) => Math.random() < p;
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
 const fetchWithTrace = (url, init = {}) => {
   const headers = {
     ...(init.headers || {}),
@@ -116,6 +125,10 @@ async function checkout(cartItems) {
     });
 
     if (response.ok) {
+      try {
+        const order = await response.json();
+        rememberOrderId(order?.id);
+      } catch (_) {}
       console.log(
         `[${new Date().toISOString()}] ✓ Checkout successful! Order total: $${totalAmount.toFixed(2)}`
       );
@@ -139,6 +152,82 @@ async function checkout(cartItems) {
   }
 }
 
+async function getOrderHistory() {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/orders/history?sessionId=${sessionId}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ orders/history:`, e.message);
+  }
+}
+
+async function getOrderById(id) {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/orders/${id}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ orders/${id}:`, e.message);
+  }
+}
+
+async function getCategories() {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/products/categories`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ products/categories:`, e.message);
+  }
+}
+
+async function getProductById(id) {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/products/${id}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ products/${id}:`, e.message);
+  }
+}
+
+async function getCartTotal() {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/cart/total?sessionId=${sessionId}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ cart/total:`, e.message);
+  }
+}
+
+async function updateCartQuantity(productId, quantity) {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/cart/update?sessionId=${sessionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId, quantity }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ cart/update:`, e.message);
+  }
+}
+
+async function removeCartItem(productId) {
+  try {
+    const r = await fetchWithTrace(`${BASE_URL}/cart/${productId}?sessionId=${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ✗ cart/${productId} DELETE:`, e.message);
+  }
+}
+
 async function runCycle() {
   currentAccountId = ACCOUNT_IDS[Math.floor(Math.random() * ACCOUNT_IDS.length)];
   console.log(`\n[${new Date().toISOString()}] ========== NEW CYCLE START (account: ${currentAccountId}) ==========`);
@@ -149,6 +238,12 @@ async function runCycle() {
     console.warn(`[${new Date().toISOString()}] No products available, skipping cycle`);
     return;
   }
+
+  // Pseudo-random browse traffic — exercise idle endpoints
+  if (chance(0.4)) await getCategories();
+  if (chance(0.4)) await getProductById(pick(products).id);
+  if (chance(0.4)) await getOrderHistory();
+  if (chance(0.4) && recentOrderIds.length > 0) await getOrderById(pick(recentOrderIds));
 
   // Clear cart (fetch and note what we're clearing)
   const existingCart = await getCart();
@@ -186,8 +281,20 @@ async function runCycle() {
   }
 
   // Get cart and suggestions (simulating cart page view)
-  const cart = await getCart();
+  let cart = await getCart();
   await getCartSuggestions();
+
+  // Pseudo-random cart maintenance
+  if (chance(0.5)) await getCartTotal();
+  if (cart.length > 0 && chance(0.3)) {
+    const item = pick(cart);
+    await updateCartQuantity(item.product_id, randomInt(1, 5));
+  }
+  if (cart.length > 0 && chance(0.3)) {
+    const item = pick(cart);
+    await removeCartItem(item.product_id);
+    cart = await getCart();
+  }
 
   console.log(`[${new Date().toISOString()}] Attempting checkout with ${cart.length} items...`);
   await checkout(cart);
