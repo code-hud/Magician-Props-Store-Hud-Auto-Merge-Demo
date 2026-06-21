@@ -26,8 +26,6 @@ jobs:
           tags: magician-props-api:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            GIT_COMMIT_SHA=${{ github.sha }}
 
   build-frontend:
     name: Build Frontend Image
