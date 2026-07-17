@@ -29,3 +29,6 @@ async function bootstrap() {
   });
 }
 bootstrap();
+
+// bugbot trigger test v2 — safe to delete
+export const BUGBOT_TEST_V2 = true;
