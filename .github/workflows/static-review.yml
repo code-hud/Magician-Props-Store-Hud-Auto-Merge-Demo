@@ -63,5 +63,3 @@ jobs:
             **Why:** 2-4 short bullets on the blast radius and which flows it may touch.
 
             **Affected flows:** <comma-separated>
-
-            <sub>Static analysis only — no production runtime data. Based on code + diff.</sub>
