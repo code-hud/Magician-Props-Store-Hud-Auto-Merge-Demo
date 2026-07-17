@@ -49,14 +49,15 @@ export class OrdersService {
     customerPhone: string,
     totalAmount: number,
     items: { productId: number; quantity: number; price: number }[],
-    promoCode?: string,
+    promoCodes?: string[],
   ): Promise<Order> {
-    // Apply a promotional discount when the order carries a valid promo code.
+    // Customers can stack multiple promo codes; apply each in sequence so the
+    // discounts compound on the running total.
     let chargedTotal = totalAmount;
-    if (promoCode) {
-      const discount = this.promotionsService.findByCode(promoCode);
+    for (const code of promoCodes ?? []) {
+      const discount = this.promotionsService.findByCode(code);
       if (discount) {
-        chargedTotal = applyDiscount(normalizeAmount(totalAmount), discount);
+        chargedTotal = applyDiscount(normalizeAmount(chargedTotal), discount);
       }
     }
 
