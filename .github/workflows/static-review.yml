@@ -1,0 +1,69 @@
+name: Static Review
+
+# A naive static code reviewer. Claude Code runs in the CI runner with the repo
+# checked out and read tools available: it reads the PR diff and any related
+# code it wants, then guesses the risk of the change WITHOUT any production or
+# runtime data, and posts a PR comment. This is the static-analysis foil to
+# Hud's runtime risk assessment.
+
+on:
+  pull_request:
+    branches: [main, 'demo/**']
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  static-review:
+    name: Static Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude static risk review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          model: claude-opus-4-8
+          timeout_minutes: "10"
+          allowed_tools: "Bash(git diff:*),Bash(git log:*)"
+          direct_prompt: |
+            You are an automated STATIC code-review bot gating this pull request.
+            You have ONLY the source code and this PR's diff — you have NO
+            production or runtime data (no traffic volumes, no invocation counts,
+            no knowledge of which code paths actually execute in production).
+
+            Review this PR: run `git diff` against the base branch to see the
+            change, and read any related files in the repo you need (callers,
+            endpoints, services, tests) to judge the blast radius.
+
+            Assess the SUSPECTED risk of merging, from the code alone:
+            - Is the change customer-facing? Does it touch important business
+              flows (checkout, payments, orders, cart, auth)?
+            - How many callers/endpoints could be affected? Is it reachable from
+              public endpoints? Does its result move money or get persisted?
+            - Is there test coverage?
+
+            Because you lack runtime data, be appropriately conservative about
+            changes that are statically reachable from money or persistence
+            paths — you cannot confirm they are safe in production.
+
+            Post a single PR comment in GitHub-flavored markdown, in exactly this
+            shape (no preamble):
+
+            ## 🔍 Static Review — Risk: <N>/100 (<Low|Medium|High>)
+
+            **Change:** <one line: the symbol/behavior changed>
+
+            **Why:** 2-4 short bullets on the suspected blast radius and which
+            flows it may touch.
+
+            **Affected flows (static):** <comma-separated>
+
+            <sub>Static analysis only — no production runtime data. Based on code + diff.</sub>
