@@ -7,9 +7,10 @@ import { OrderItem } from './entities/order-item.entity';
 import { CartItem } from '../cart/entities/cart-item.entity';
 import { OrderRepository } from './repositories/order.repository';
 import { CartRepository } from '../cart/repositories/cart.repository';
+import { PromotionsModule } from '../promotions/promotions.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, CartItem])],
+  imports: [TypeOrmModule.forFeature([Order, OrderItem, CartItem]), PromotionsModule],
   controllers: [OrdersController],
   providers: [OrderRepository, CartRepository, OrdersService],
   exports: [OrdersService],

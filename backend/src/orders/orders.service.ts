@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Order } from './entities/order.entity';
 import { OrderRepository } from './repositories/order.repository';
 import { CartRepository } from '../cart/repositories/cart.repository';
+import { applyDiscount, normalizeAmount } from '../common/pricing.util';
+import { PromotionsService } from '../promotions/promotions.service';
 
 @Injectable()
 export class OrdersService {
@@ -12,6 +14,7 @@ export class OrdersService {
   constructor(
     private orderRepository: OrderRepository,
     private cartRepository: CartRepository,
+    private promotionsService: PromotionsService,
   ) {}
 
   private async processCheckout(
@@ -46,9 +49,19 @@ export class OrdersService {
     customerPhone: string,
     totalAmount: number,
     items: { productId: number; quantity: number; price: number }[],
+    promoCode?: string,
   ): Promise<Order> {
+    // Apply a promotional discount when the order carries a valid promo code.
+    let chargedTotal = totalAmount;
+    if (promoCode) {
+      const discount = this.promotionsService.findByCode(promoCode);
+      if (discount) {
+        chargedTotal = applyDiscount(normalizeAmount(totalAmount), discount);
+      }
+    }
+
     // Process checkout through external service
-    await this.processCheckout(sessionId, totalAmount, items);
+    await this.processCheckout(sessionId, chargedTotal, items);
 
     // Create order
     const savedOrder = await this.orderRepository.createOrder(
@@ -56,7 +69,7 @@ export class OrdersService {
       customerName,
       customerEmail,
       customerPhone,
-      totalAmount,
+      chargedTotal,
     );
 
     // Create order items

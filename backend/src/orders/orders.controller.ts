@@ -15,6 +15,7 @@ export class OrdersController {
       customerPhone: string;
       totalAmount: number;
       items: { productId: number; quantity: number; price: number }[];
+      promoCode?: string;
     },
   ) {
     return this.ordersService.createOrder(
@@ -24,6 +25,7 @@ export class OrdersController {
       body.customerPhone,
       body.totalAmount,
       body.items,
+      body.promoCode,
     );
   }
 

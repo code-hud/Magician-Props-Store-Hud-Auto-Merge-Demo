@@ -5,6 +5,7 @@ import {
   ProductsService,
   ProductWithPopularity,
 } from '../products/products.service';
+import { normalizeAmount, roundCurrency } from '../common/pricing.util';
 
 @Injectable()
 export class CartService {
@@ -44,10 +45,11 @@ export class CartService {
   async getCartTotal(sessionId: string): Promise<number> {
     const cartItems = await this.cartRepository.findBySessionId(sessionId);
 
-    return cartItems.reduce(
-      (total, item) => total + Number(item.product.price) * item.quantity,
+    const total = cartItems.reduce(
+      (sum, item) => sum + normalizeAmount(item.product.price) * item.quantity,
       0,
     );
+    return roundCurrency(total);
   }
 
   async getSuggestions(sessionId: string): Promise<ProductWithPopularity[]> {

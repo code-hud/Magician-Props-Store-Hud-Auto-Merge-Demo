@@ -1,0 +1,26 @@
+# Hud — PR risk policy
+#
+# Hud assesses every pull request against production runtime data (which
+# functions run under which endpoints, how often, and what they call
+# downstream) and posts a risk score as a status check. PRs at or below the
+# auto-merge threshold — and green on all other required checks — are merged
+# automatically.
+#
+# Docs: https://docs.hud.io/pr-risk
+
+risk:
+  # 0–100. PRs scoring at or below this are eligible for auto-merge.
+  auto_merge_threshold: 10
+
+  # Flows that always require human review regardless of score.
+  protected_flows:
+    - checkout
+    - cart
+    - payments
+
+auto_merge:
+  enabled: true
+  # Required checks that must also be green before Hud merges.
+  require_checks:
+    - build-lint
+    - tests
